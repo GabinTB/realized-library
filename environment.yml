@@ -1,0 +1,13 @@
+name: realized-library
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - numba
+  - pip
+  - pip:
+      - -e .
+      - pytest
+      - pytest-cov

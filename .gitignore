@@ -1,0 +1,16 @@
+__pycache__
+*.mypy_cache
+*.pytest_cache
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.egg-info
+dist
+build
+*.egg
+*.whl
+*.log
+*.coverage
+.coverage.*
+*.DS_Store
