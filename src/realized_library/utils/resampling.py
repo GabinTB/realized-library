@@ -4,7 +4,7 @@ from numba import njit
 from typing import Tuple
 
 
-def _convert_timestamps_to_ns(timestamps: np.ndarray) -> np.array:
+def convert_timestamps_to_ns(timestamps: np.ndarray) -> np.array:
     """
     Detect the unit of the timestamps based on the first two values and convert them to nanoseconds.
 
@@ -145,19 +145,20 @@ def compute(
     if len(timestamps) != len(prices):
         raise ValueError("Length of timestamps and prices must match.")
     
-    # Sort inputs by timestamps
-    sorted_idx = np.argsort(timestamps)
-    timestamps_sorted = timestamps[sorted_idx]
-    prices_sorted = prices[sorted_idx]
+    # # Sort inputs by timestamps
+    # sorted_idx = np.argsort(timestamps)
+    # timestamps_sorted = timestamps[sorted_idx]
+    # prices_sorted = prices[sorted_idx]
+    # timestamps_ns = convert_timestamps_to_ns(timestamps_sorted)
+    # -> Not necessary, we assume the user provides sorted nanoseconds timestamps and prices.
 
     # Convert resampling frequency to bin size
-    timestamps_ns = _convert_timestamps_to_ns(timestamps_sorted)
-    interval_nanoseconds = _parse_resample_freq(resample_freq) * 1e9  # Convert to nanoseconds
+    interval_nanoseconds = _parse_resample_freq(resample_freq) * 1e9  # Parse frequency and convert to nanoseconds
 
     # Build bin edges
-    start_time = timestamps_ns[0]
-    end_time = timestamps_ns[-1]+ interval_nanoseconds  # Ensure the last observation falls inside the last bin
+    start_time = timestamps[0]
+    end_time = timestamps[-1]+ interval_nanoseconds  # Ensure the last observation falls inside the last bin
     intervals = np.arange(start_time, end_time, interval_nanoseconds)
 
     # Call numba-accelerated binning
-    return _get_last_prices_in_bins(timestamps_ns, prices_sorted, intervals)
+    return _get_last_prices_in_bins(timestamps, prices, intervals)

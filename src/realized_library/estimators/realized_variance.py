@@ -1,6 +1,4 @@
 import numpy as np
-from typing import Optional
-from numba import njit
 
 def compute(
     prices: np.ndarray
