@@ -4,7 +4,7 @@ from realized_library.estimators.realized_variance import compute as rv
 
 def optimal_q(
     timestamps: np.ndarray,
-    target_time_interval: int = 300,  # Minimum time interval in seconds (default is 5 minutes)
+    target_time_interval: int = 120,  # Minimum time interval in seconds (default is 2 minutes)
 ) -> int:
     """
     Estimate the optimal q parameter for robust ω^2 estimation.
@@ -57,7 +57,6 @@ def optimal_q(
 
 def compute(
     prices: np.ndarray,
-    timestamps: Optional[np.ndarray] = None,
     q: Optional[float] = None,
 ) -> float:
     """
@@ -72,8 +71,10 @@ def compute(
 
     Parameters
     ----------
-    log_returns : np.ndarray
-        Array of log returns.
+    prices : np.ndarray
+        Array of strictly positive price observations.
+    q : Optional[float], optional
+        The q parameter for robust ω^2 estimation. If None, it will be estimated from
 
     Returns
     -------
@@ -82,11 +83,6 @@ def compute(
     """
     if q is not None and q < 2:
         raise ValueError("q must be greater to 1 for robust ω^2 estimation.")
-    elif q is None and timestamps is None:
-        raise ValueError("Either q or timestamps must be provided to estimate omega2.")
-    
-    if q is None:
-        q = optimal_q(timestamps)
 
     omega2_estimates = []
     for i in range(2, q+1):
