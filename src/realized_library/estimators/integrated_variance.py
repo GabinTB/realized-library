@@ -1,12 +1,13 @@
 import numpy as np
-from bisect import bisect_left
+import pandas as pd
+from realized_library.utils.subsampling import compute as subsample
 from realized_library.estimators.realized_variance import compute as rv
 
 def compute(
     prices: np.ndarray,
     timestamps: np.ndarray,
-    subsample_time_min: int = 20,
-    shift_seconds: int = 1,
+    sample_size: str = "20m",
+    offset: str = "1s",
 ) -> float:
     """
     Estimate the integrated variance (IV) using the RVsparse method with multiple shifted grids.
@@ -42,45 +43,26 @@ def compute(
     ValueError
         If no valid grid produced any realized variance.
     """
-    if len(str(int(timestamps[0]))) != 19:
-        raise ValueError("Timestamps must be in nanoseconds (19 digits).")
-    if not 10 <= subsample_time_min <= 60:
-        raise ValueError("grid_time should be between 10 and 60 minutes.")
-    if not 1 <= shift_seconds <= 10:
-        raise ValueError("grid_time should be between 10 and 60 minutes.")
 
-    subsample_time_ns = subsample_time_min * 60 * 1e9  # Convert grid time to nanoseconds
-    increment_ns = shift_seconds * 1e9               # Shift increment in nanoseconds
-    num_increments = int((subsample_time_min * 60) // shift_seconds)  # Total number of grid shifts (e.g., 1200 for 20min grid with 1s shift)
-    if num_increments < 1:
-        raise ValueError("The number of shifts must be at least 1. Timestamp range too small for the given subsample_time_min and shift_seconds.")
+    sample_size_ns = int(pd.to_timedelta(sample_size).total_seconds() * 1e9)
+    offset_ns = int(pd.to_timedelta(offset).total_seconds() * 1e9)
+    if sample_size_ns % offset_ns != 0:
+        raise ValueError(f"Sample size {sample_size} must be a multiple of offset {offset} to reduce computation time.")
+    nb_samples = sample_size_ns // offset_ns
 
-    total_time_ns = timestamps[-1] - timestamps[0]
-    num_grid_points_per_shift = int(total_time_ns // subsample_time_ns) + 1  # Number of grid points (samples) per shift
-
+    prices_subsamples, _ = subsample(
+        prices=prices, 
+        timestamps=timestamps, 
+        sample_size=sample_size, 
+        offset=offset,
+        nb_samples=nb_samples
+    )
+    
     rv_parses = []
-    for shift_idx in range(num_increments):
-        grid_start_time = int(timestamps[0] + shift_idx * increment_ns)
-
-        grid_prices = []
-        for point_idx in range(num_grid_points_per_shift):
-            target_time = grid_start_time + point_idx * subsample_time_ns
-            price_idx = bisect_left(timestamps, target_time)
-            if price_idx >= len(prices):
-                break
-            grid_prices.append(prices[price_idx])
-
-        grid_prices = np.array(grid_prices)
-        if len(grid_prices) >= 2:
-            # log_returns = np.diff(np.log(grid_prices))
-            # rv_parse_i = np.sum(log_returns ** 2)
-            rv_parse_i = rv(grid_prices)
-            rv_parses.append(rv_parse_i)
-
-    if len(rv_parses) != num_increments:
-        raise ValueError(
-            f"Expected {num_increments} shifts, but only {len(rv_parses)} valid RVs were computed. "
-            "This may indicate that the price series is too short or the grid parameters are too strict."
-        )
+    for sample in prices_subsamples:
+        if len(sample) < 2:
+            continue
+        rv_parse_i = rv(sample)
+        rv_parses.append(rv_parse_i)
 
     return np.mean(rv_parses) # = IV estimate

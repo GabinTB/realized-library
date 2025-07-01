@@ -55,6 +55,8 @@ def _rv_sparse(
     elif debiasing == 'oomen':
         log_returns = np.diff(np.log(prices))
         n = len(log_returns)
+        if n < 2:
+            return 0.0
         return ( -1/(n-1) ) * np.dot(log_returns[:-1], log_returns[1:])
     elif debiasing == 'bnhls':
         if bnhls_debiasing_params is None:
@@ -179,6 +181,8 @@ def compute(
     noise_estimates = []
     for i in range(2, q+1):
         subsample_prices = prices[::i] # Subsample every q-th observation starting at offset i
+        if len(subsample_prices) < 2:
+            continue
         noise_estimate_i = _rv_sparse( # RV_sparse_i
             prices=subsample_prices,
             debiasing=debiasing,
@@ -186,7 +190,7 @@ def compute(
         )
         noise_estimates.append(noise_estimate_i)
     
-    if len(noise_estimates) != q - 1:
-        raise ValueError("We didn't obtain q distinct realised variances")
+    # if len(noise_estimates) != q - 1:
+    #     raise ValueError("We didn't obtain q distinct realised variances")
 
     return np.mean(noise_estimates)
