@@ -39,7 +39,7 @@ def numerical_integral(
         num_points += 1
 
     x = np.linspace(a, b, num_points)
-    y = func(x)
+    y = np.array([func(xi) for xi in x])
 
     if method == "simpson":
         return simps(y, x)

@@ -1,164 +1,126 @@
 import numpy as np
-from bisect import bisect_left
-from numba import njit
-from typing import Tuple
+import re
+import polars as pl
+from typing import Tuple, Union
 
 
-def convert_timestamps_to_ns(timestamps: np.ndarray) -> np.array:
+def _is_valid_high_freq_interval(interval: str) -> bool:
     """
-    Detect the unit of the timestamps based on the first two values and convert them to nanoseconds.
+    Validate if the input interval string is a valid high-frequency interval
+    between 1 nanosecond and 60 minutes (1 hour), suitable for Polars resampling.
+
+    Allowed units: ns, us, ms, s, m
 
     Parameters
     ----------
-    timestamps : np.ndarray
-        Array of timestamps (numeric).
+    interval : str
+        The interval string to validate (e.g., '1s', '500ms', '10m').
 
     Returns
     -------
-    np.array
-        Timestamps converted to nanoseconds.
-
-    Raises
-    ------
-    ValueError
-        If timestamps are not numeric or have inconsistent units.
+    bool
+        True if valid, False otherwise.
     """
-    # timestamp_lenghts = [len(str(int(ts))) for ts in timestamps]
-    # if np.unique(timestamp_lenghts).size != 1:
-    #     raise ValueError("Timestamps must have a consistent unit.")
-    # lenght = timestamp_lenghts[0]
-    
-    lenght = len(str(int(timestamps[0])))
-    if lenght == 10: # unit = seconds
-        return timestamps * 1e9
-    elif lenght == 13: # unit = milliseconds
-        return timestamps * 1e6
-    elif lenght == 16: # unit = microseconds
-        return timestamps * 1e3
-    elif lenght == 19: # unit = nanoseconds
-        return timestamps
+    pattern = r'^\s*(\d+)\s*(ns|us|ms|s|m)\s*$'
+    match = re.match(pattern, interval)
+    if not match:
+        return False
+
+    value = int(match.group(1))
+    unit = match.group(2)
+
+    # Apply limits per unit
+    if unit == 'ns' and value >= 1:
+        return True
+    elif unit == 'us' and value >= 1:
+        return True
+    elif unit == 'ms' and value >= 1:
+        return True
+    elif unit == 's' and value >= 1:
+        return True
+    elif unit == 'm' and 1 <= value <= 60:
+        return True
     else:
-        raise ValueError(f"Invalid timestamp length: {lenght}. Timestamps must be in seconds, milliseconds, microseconds, or nanoseconds.")
-
-
-def _parse_resample_freq(freq_str: str) -> float:
-    """
-    Convert a resampling frequency string to seconds.
-    """
-    if not isinstance(freq_str, str):
-        raise ValueError(f"Invalid resample frequency: input must be a string, got {type(freq_str)}.")
-
-    freq_str = freq_str.strip().lower()
-    units = {
-        'ns': 1e-9,
-        'us': 1e-6,
-        'ms': 1e-3,
-        's': 1,
-        'm': 60
-    }
-
-    for unit, factor in units.items():
-        if freq_str.endswith(unit):
-            try:
-                value = float(freq_str.replace(unit, ''))
-                return value * factor
-            except ValueError:
-                break
-    raise ValueError(f"Invalid resample frequency string: {freq_str}")
-
-
-@njit
-def _get_last_prices_in_bins(
-    timestamps: np.ndarray,
-    prices: np.ndarray,
-    bin_edges: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray]:
-    n_bins = len(bin_edges) - 1
-    bin_timestamps = []
-    bin_prices = []
-    n_obs = len(timestamps)
-
-    obs_idx = 0
-
-    for bin_idx in range(n_bins):
-        bin_start = bin_edges[bin_idx]
-        bin_end = bin_edges[bin_idx + 1]
-
-        # Binary search for start index (skip points before bin_start)
-        left = obs_idx
-        right = n_obs
-        while left < right:
-            mid = (left + right) // 2
-            if timestamps[mid] < bin_start:
-                left = mid + 1
-            else:
-                right = mid
-        start_idx = left
-
-        # Binary search for end index (first point >= bin_end)
-        left = start_idx
-        right = n_obs
-        while left < right:
-            mid = (left + right) // 2
-            if timestamps[mid] < bin_end:
-                left = mid + 1
-            else:
-                right = mid
-        end_idx = left
-
-        if end_idx > start_idx:
-            last_idx = end_idx - 1
-            bin_timestamps.append(timestamps[last_idx])
-            bin_prices.append(prices[last_idx])
-
-        obs_idx = end_idx  # Skip to next bin start
-
-    return np.array(bin_timestamps), np.array(bin_prices)
-
+        return False
 
 def compute(
-    timestamps: np.ndarray,
     prices: np.ndarray,
-    resample_freq: str
-) -> np.ndarray:
+    timestamps: np.ndarray,
+    sample_size: Union[int, str],
+    explicit_start: int = None,
+    explict_end: int = None,
+    ffill: bool = False
+) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Resample high-frequency price series using the last price in each time bin.
+    Resample high-frequency price series using the last price in each time bin, with optional forward fill.
 
     Parameters
     ----------
     timestamps : np.ndarray
-        Timestamps (numeric, same length as prices).
-
+        Nanosecond timestamps (same length as prices).
     prices : np.ndarray
-        Prices (strictly positive, same length as timestamps).
-
-    resample_freq : str
-        Resampling frequency (e.g., '1s', '5m', etc.).
+        Prices (same length as timestamps).
+    sample_size : Union[int, str]
+        Resample frequency (e.g., '1s', '5m', etc.) if str or number of observations per bin if int.
+    explicit_start : int, optional
+        Explicit start timestamp in nanoseconds.
+    explict_end : int, optional
+        Explicit end timestamp in nanoseconds.
+    ffill : bool, optional
+        Whether to forward-fill missing bins. Default is False.
 
     Returns
     -------
-    np.ndarray
-        Resampled price series.
+    Tuple[np.ndarray, np.ndarray]
+        Resampled prices and timestamps (both np.ndarray).
     """
-    if not isinstance(timestamps, np.ndarray) or not isinstance(prices, np.ndarray):
-        raise ValueError("Both timestamps and prices must be numpy arrays.")
-    if len(timestamps) != len(prices):
-        raise ValueError("Length of timestamps and prices must match.")
+    if timestamps.shape != prices.shape:
+        raise ValueError("'timestamps' and 'prices' must have the same shape.")
+    if timestamps.ndim != 1:
+        raise ValueError("'timestamps' and 'prices' must be 1D arrays.")
+    if isinstance(sample_size, str) and not _is_valid_high_freq_interval(sample_size):
+        raise ValueError(f"Invalid sample_size: '{sample_size}'. Must be a valid interval from 1ns to 60m (e.g., '10us', '1s', '500ms', '10m').")
+
+    start_ns = explicit_start if explicit_start is not None else timestamps[0]
+    end_ns = explict_end if explict_end is not None else timestamps[-1]
+
+    mask = (timestamps >= start_ns) & (timestamps <= end_ns)
+    timestamps = timestamps[mask]
+    prices = prices[mask]
+
+    if isinstance(sample_size, str):
+        df = pl.DataFrame({
+            "timestamp": pl.from_numpy(timestamps).cast(pl.Datetime("ns")),
+            "price": pl.from_numpy(prices)
+        })
+        resampled_df = (
+            df.sort("timestamp")
+            .group_by_dynamic(
+                index_column="timestamp",
+                every=sample_size,
+                #   period=resample_freq, # Useless since it is automatically assigned to `every`
+                closed="left",
+                start_by="datapoint",
+            )
+            .agg(pl.col("price").last().alias("last_price"))
+            .sort("timestamp")
+        )
+        if ffill:
+            resampled_df = resampled_df.with_columns(pl.col("last_price").fill_null(strategy="forward"))
+        # resampled_df = resampled_df.drop_nulls(subset=["last_price"]) # Drop any bins still null (only possible for leading bins if ffill=True)
+        resampled_timestamps = resampled_df["timestamp"].cast(pl.Int64).to_numpy()
+        resampled_prices = resampled_df["last_price"].to_numpy()
+
+    elif isinstance(sample_size, int):
+        if sample_size < 1:
+            raise ValueError("sample_size must be a positive integer.")
+        resampled_prices = prices[::sample_size]
+        resampled_timestamps = timestamps[::sample_size]
     
-    # # Sort inputs by timestamps
-    # sorted_idx = np.argsort(timestamps)
-    # timestamps_sorted = timestamps[sorted_idx]
-    # prices_sorted = prices[sorted_idx]
-    # timestamps_ns = convert_timestamps_to_ns(timestamps_sorted)
-    # -> Not necessary, we assume the user provides sorted nanoseconds timestamps and prices.
+    else:
+        raise ValueError("sample_size must be either a string (e.g., '1s', '5m') or an integer.")
+    
+    if len(resampled_prices)!= len(resampled_timestamps):
+        raise ValueError("Error in resampling: prices and timestamps lengths do not match after resampling.")
 
-    # Convert resampling frequency to bin size
-    interval_nanoseconds = _parse_resample_freq(resample_freq) * 1e9  # Parse frequency and convert to nanoseconds
-
-    # Build bin edges
-    start_time = timestamps[0]
-    end_time = timestamps[-1]+ interval_nanoseconds  # Ensure the last observation falls inside the last bin
-    intervals = np.arange(start_time, end_time, interval_nanoseconds)
-
-    # Call numba-accelerated binning
-    return _get_last_prices_in_bins(timestamps, prices, intervals)
+    return resampled_prices, resampled_timestamps
