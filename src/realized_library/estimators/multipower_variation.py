@@ -16,7 +16,7 @@ def _mu_x(x: float) -> float:
 
 def compute(
     prices: list[float],
-    I: int = 3,      # Tripower variation by default
+    I: int = 3,         # Tripower variation by default
     ri: float = 2/3,    # Default ri for tripower variation
     timestamps: Optional[np.array] = None,
     sample_size: Optional[Union[int, str]] = None,
@@ -102,15 +102,12 @@ def compute(
                 mvs[idx] = (1 / mu_product) * scaling * mpv_sum
 
         mvSS = np.sum(mvs) * (base_count / total_count)
-        bias_scale = m / (m - 1)
+        bias_scale = m / (m - I)
         return bias_scale * mvSS
 
     
     returns = np.diff(np.log(prices))
     n = len(returns)
-    
-    bias_scale = n / (n - I)
-    scaling = n ** (np.sum(r) / 2 - 1)
 
     mpv_sum = 0.0
     for i in range(I, n + 1):
@@ -119,5 +116,6 @@ def compute(
             product_term *= np.abs(returns[i - j - 1]) ** r[j]
         mpv_sum += product_term
 
-    mpv = bias_scale * (1 / mu_product) * scaling * mpv_sum
-    return mpv
+    scaling = n ** (np.sum(r) / 2 - 1)
+    bias_scale = n / (n - I)
+    return bias_scale * (1 / mu_product) * scaling * mpv_sum

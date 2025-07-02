@@ -74,22 +74,6 @@ def compute(
             nb_samples=nb_samples
         )
 
-        # bvs = []
-        # for sample in price_subsamples:
-        #     if len(sample) < 2:
-        #         continue
-        #     bvs.append(compute(
-        #         prices=sample,
-        #         preaveraged=preaveraged,
-        #         theta=theta,
-        #         q=q,
-        #         skip=skip,
-        #         timestamps=None,
-        #         sample_size=None,
-        #         offset=None
-        #     ))
-        # return np.mean(bvs)
-
         m = len(prices)
         bvs = np.zeros(len(price_subsamples))
         total_count = 0
