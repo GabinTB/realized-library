@@ -85,10 +85,10 @@ def compute(
                 n = len(returns)
                 if i == 0:
                     base_count = n - 1 - skip
-                bvs[i] = (np.pi/2) * np.abs(np.dot(returns[:n-1-skip], np.abs(returns[1+skip:n])))
+                bvs[i] = (np.pi/2.0) * np.abs(np.dot(np.abs(returns[1+skip:]), np.abs(returns[:-1-skip])))
                 total_count += n - 1 - skip
         bvSS = np.sum(bvs) * (base_count / total_count)
-        bias_scale = m / (m - 1 - skip)
+        bias_scale = m / (m - 1.0 - skip)
         return bias_scale * bvSS
 
     
@@ -132,6 +132,7 @@ def compute(
             if (n - 1 - skip) < 1 or (2 + skip) > n:
                 raise ValueError(f"The value of skip ({skip}) is too large for the sampling method used. skip should be small relative to the number of prices ({n}) computed using the chosen sampling method.")
 
-        bv = (np.pi/2) * np.abs(np.dot(returns[:n-1-skip], np.abs(returns[1+skip:n])))
-        bias_scale =  n / (n - 1 - skip)
+        # bv = (np.pi/2.0) * np.abs(np.sum(np.abs(returns[1+skip:] * returns[:-1-skip])))
+        bv = (np.pi/2.0) * np.abs(np.dot(np.abs(returns[1+skip:]), np.abs(returns[:-1-skip])))
+        bias_scale =  n / (n - 1.0 - skip)
         return bias_scale * bv

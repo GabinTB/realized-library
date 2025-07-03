@@ -73,9 +73,6 @@ def compute(
             raise ValueError("At least two prices are required to compute the MedRV.")
         log_prices = np.log(prices)
         returns = np.diff(log_prices)
-        returns2 = (returns ** 2)
-        # returns2 = (np.sqrt(m) * returns) ** 2
-        r2_matrix = np.column_stack([returns2[:-2], returns2[1:-1], returns2[2:]]) # Rolling window: each row has returns^2 at t, t+1, t+2
+        matrix = np.column_stack([returns[:-2], returns[1:-1], returns[2:]]) # Rolling window: each row has returns^2 at t, t+1, t+2
         
-        return SCALE * (m / (m - 2)) * np.sum(np.median(r2_matrix, axis=1))
-        # return med_rv_scale * np.mean(np.median(r2_matrix, axis=1))
+        return SCALE * (m / (m - 2)) * np.sum(np.median(np.abs(matrix), axis=1)**2)

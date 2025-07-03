@@ -1,23 +1,15 @@
 import warnings
 from typing import Optional, Union
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 from pandas import to_timedelta
-from scipy.special import gamma
+from realized_library._utils.std_norm_dist_moments import mu_x
 from realized_library.utils.subsampling import compute as subsample
-from realized_library.utils.preaverage import compute as preaverage
-from realized_library.estimators.noise_variance import compute as noise_variance_estimation
-
-
-def _mu_x(x: float) -> float:
-    """
-    Compute mu_x = E(|N(0,1)|^x).
-    """
-    return (2**(x / 2)) / np.sqrt(np.pi) * gamma((x + 1) / 2)
 
 def compute(
     prices: list[float],
-    I: int = 3,         # Tripower variation by default
-    ri: float = 2/3,    # Default ri for tripower variation
+    m: int = 3,       # Tripower variation by default
+    r: int = 2,       # Default tripower variation
     timestamps: Optional[np.array] = None,
     sample_size: Optional[Union[int, str]] = None,
     offset: Optional[Union[int, str]] = None
@@ -25,18 +17,22 @@ def compute(
     """
     Computes multipower variation (MPV) for a given list of prices.
     Examples of multipower variation include:
-    - Tripower variation (I=3, ri=2/3)
-    - Tripower quarticity (I=3, ri=4/3)
-    - Quadpower quarticity (I=4, ri=1)
+    - Realized Variance = MVP(m=1, r=2)
+    - Power Variation = MVP(m=1, r=4)
+    - Bipower Variation = MVP(m=2, r=2)
+    - Tripower Variation = MVP(m=3, r=2)
+    - Tripower Quarticity = MVP(m=3, r=4)
+    - Quadpower Variation = MVP(m=4, r=2)
+    - Quadpower Quarticity = MVP(m=4, r=4)
 
     Parameters
     ----------
     prices : list[float]
         List of prices for which to compute the multipower variation.
-    I : int, optional
-        The number of absolute returns to consider in the product term. Default is 3 (tripower variation).
-    ri : float, optional
-        The exponent for the absolute returns in the product term. Default is 2/3 (tripower variation).
+    m : int
+        The number of powers to use in the multipower variation. Default is 3 for tripower variation.
+    r : int
+        The power to which the absolute returns are raised. Default is 2 for tripower variation
     timestamps : Optional[np.array], optional
         Timestamps corresponding to the prices, used for subsampling. If provided, must match the length of prices.
     sample_size : Optional[Union[int, str]], optional
@@ -52,8 +48,7 @@ def compute(
     if len(prices) < 2:
         raise ValueError("At least two prices are required to compute bipower variation.")
     
-    r = np.ones(I) * ri
-    mu_product = np.prod([_mu_x(ri) for ri in r])
+    rs = np.ones(m) * (r/m)
 
     if sample_size is not None and offset is not None:
         if timestamps is None:
@@ -79,43 +74,36 @@ def compute(
             nb_samples=nb_samples
         )
 
-        m = len(prices)
+        N = len(prices)
         mvs = np.zeros(len(price_subsamples))
         total_count = 0
         for idx, sample in enumerate(price_subsamples):
-            if len(sample) < 2:
+            if len(sample) < m + 1:
                 mvs[idx] = np.nan
             else:
                 returns = np.diff(np.log(sample))
                 n = len(returns)
-                mpv_sum = 0.0
-                for i in range(I, I + 1):
-                    product_term = 1.0
-                    for j in range(I):
-                        product_term *= np.abs(returns[i - j - 1]) ** r[j]
-                    mpv_sum += product_term
+                mklr_windows = sliding_window_view(returns, window_shape=m)  # Shape: (len(mklrs)-I+1, I)
+                product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
                 if idx == 0:
                     base_count = n - 1
                 total_count += n - 1
-                
-                scaling = n ** (np.sum(r) / 2 - 1)
-                mvs[idx] = (1 / mu_product) * scaling * mpv_sum
+                dmr = mu_x(r/m)**(-m)
+                scaling = n ** ( r * 0.5 - 1.0 )
+                mvs[idx] = dmr * scaling * np.sum(product_terms)
 
         mvSS = np.sum(mvs) * (base_count / total_count)
-        bias_scale = m / (m - I)
-        return bias_scale * mvSS
+        biais_scaling = N / (N - m + 1)
+        return biais_scaling * mvSS
 
-    
     returns = np.diff(np.log(prices))
     n = len(returns)
+    
+    mklr_windows = sliding_window_view(returns, window_shape=m)     # Shape: (len(mklrs)-I+1, I)
+    product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
 
-    mpv_sum = 0.0
-    for i in range(I, n + 1):
-        product_term = 1.0
-        for j in range(I):
-            product_term *= np.abs(returns[i - j - 1]) ** r[j]
-        mpv_sum += product_term
+    dmr = mu_x(r/m)**(-m)
+    scaling = n ** ( r * 0.5 - 1.0 )
+    biais_scaling = n / (n - m + 1)
 
-    scaling = n ** (np.sum(r) / 2 - 1)
-    bias_scale = n / (n - I)
-    return bias_scale * (1 / mu_product) * scaling * mpv_sum
+    return dmr * biais_scaling * scaling * np.sum(product_terms)
