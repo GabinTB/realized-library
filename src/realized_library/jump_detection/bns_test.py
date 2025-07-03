@@ -32,6 +32,10 @@ def compute(
     """
     if prices.shape != timestamps.shape:
         raise ValueError("Prices and timestamps must have the same shape.")
+    if len(timestamps) < 2:
+        raise ValueError("Timestamps must contain at least two entries.")
+    if np.diff(timestamps, n=2).any():
+        raise ValueError("Timestamps must be equally spaced. Please resample the data before applying the test.")
     
     if prices.ndim > 1:
         statistics = []
@@ -40,11 +44,6 @@ def compute(
                 raise ValueError("Each daily series must contain at least two entries.")
             statistics.append(compute(p, ts))
         return np.array(statistics)
-
-    if len(timestamps) < 2:
-        raise ValueError("Timestamps must contain at least two entries.")
-    if np.diff(timestamps, n=2).any():
-        raise ValueError("Timestamps must be equally spaced. Please resample the data before applying the test.")
     
     delta_ns = timestamps[1] - timestamps[0]  # Sampling interval in nanoseconds
     delta_sec = delta_ns / 1e9  # Convert to seconds
