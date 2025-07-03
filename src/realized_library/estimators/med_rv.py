@@ -14,6 +14,9 @@ def compute(
 ) -> float:
     """
     Compute the realized Median Realized Variance (MedRV) from price data.
+    "Jump-robust volatility estimation using nearest neighbor truncation"
+        by Andersen et al. (2012).
+        DOI: 10.1016/j.jeconom.2012.01.011
 
     Parameters
     ----------

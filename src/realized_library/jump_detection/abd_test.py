@@ -5,6 +5,7 @@ from realized_library.estimators.realized_variance import compute as rv
 from realized_library.estimators.bipower_variation import compute as bpv
 from realized_library.estimators.multipower_variation import compute as mpv
 
+
 def compute(
     prices: np.ndarray,
 ) -> Union[float, np.ndarray]:
@@ -39,15 +40,11 @@ def compute(
         raise ValueError("Need at least 4 observations for the BNS jump test.")
 
     mu1 = mu_x(1)
-
     RV = rv(prices)
-
-    BPV = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
-    # BPV = bpv(prices)
-    # BPV = mpv(prices, 2, 1.0)
-
-    QV = np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
-    # QV = mpv(prices, 4, 1.0)
+    # BPV = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
+    BPV = mpv(prices, 2, 2) # = bpv(prices)
+    # QV = np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
+    QV = mpv(prices, 4, 2)
 
     jump_stat = ( (1/n)**(-0.5) ) * ( (RV - BPV)/RV ) * ( ( mu1**(-4) + 2 * mu1**(-2) - 5 ) * max(1, QV * BPV**(-2) ) )**(-0.5)
 

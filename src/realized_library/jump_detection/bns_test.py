@@ -4,7 +4,6 @@ from realized_library._utils.std_norm_dist_moments import mu_x
 from realized_library.estimators.realized_variance import compute as rv
 from realized_library.estimators.bipower_variation import compute as bpv
 from realized_library.estimators.multipower_variation import compute as mpv
-from realized_library.estimators.modulated_multipower_variation import compute as mmpv
 
 
 def compute(
@@ -13,6 +12,9 @@ def compute(
 ) -> Union[float, np.ndarray]:
     """
     Compute the BNS (Barndorff-Nielsen and Shephard) Jump Test statistic for one day.
+    "Econometrics of Testing for Jumps in Financial Economics Using Bipower Variation"
+        by Barndorff-Nielsen, O.E., and Shephard, N. (2006).
+        DOI: 10.1093/jjfinec/nbi022
 
     Parameters
     ----------
@@ -55,18 +57,13 @@ def compute(
         raise ValueError("Need at least 4 observations for the BNS jump test.")
 
     mu1 = mu_x(1)
-
     W = (np.pi**2 / 4) + np.pi - 5 # ≈ 0.6090
-
     RV = rv(prices)
+    # BPV = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
+    BPV = mpv(prices, 2, 2) # = bpv(prices)
+    # QV = np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
+    QV = mpv(prices, 4, 2)
 
-    BPV = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
-    # BPV = mpv(prices, 2, 1.0)
-    # BPV = bpv(prices)
-
-    QV = np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
-    # QV = mpv(prices, 4, 1.0)
-
-    jump_stat = ( (mu1**(-2) * BPV / RV) - 1 ) * d**(0.5) / np.sqrt( W * max(t**(-1), QV * BPV**(-2)) )
+    jump_stat = ( (mu1**(-2) * BPV / RV) - 1 ) * d**(-0.5) / np.sqrt( W * max(t**(-1), QV * BPV**(-2)) )
 
     return jump_stat

@@ -406,6 +406,16 @@ def compute(
 ) -> float:
     """
     Compute the realized variance (sum of squared log returns) from high-frequency prices.
+    - "Designing realised kernels to measure the ex-post variation of  equity prices in the presence of noise"
+        by Barndorff-Nielsen et al. (2008).
+        DOI: 10.3982/ECTA6495
+    - "Realised Kernels in Practice: Trades and Quotes"
+        by Barndorff-Nielsen et al. (2009).
+        DOI: 10.1111/j.1368-423X.2008.00275.x
+    - "Multivariate realised kernels: consistent positive semi-definite  estimators of the covariation of equity prices with noise and  non-synchronous trading"
+        by Barndorff-Nielsen et al. (2011).
+        DOI: 10.1016/j.jeconom.2010.07.009
+    - etc.
 
     Parameters
     ----------
@@ -447,23 +457,6 @@ def compute(
     kernel = _KERNELS[kernel]
     weights = kernel.get_weights(H)
     actual_H = min(H, n - 1)  # Ensure H does not exceed the number of returns
-
-    # gamma_h = np.array([
-    #     np.sum([returns[j] * returns[j-abs(h)] for j in range(abs(h) + 1, n)]) for h in hs
-    # ])
-    # if dof_adjustment:
-    #     adj_factors = n / (n - np.abs(hs))
-    # else:
-    #     adj_factors = np.ones(2 * H + 1)
-    # rk = np.sum(weights * gamma_h * adj_factors)
-    
-    # gamma_pos = np.array([np.dot(returns[:n - h], returns[h:]) for h in range(actual_H + 1)])
-    # gamma_neg = np.array([np.dot(returns[h:], returns[:n - h]) for h in range(actual_H + 1)])
-    # if dof_adjustment:
-    #     adj_factors = n / (n - np.arange(H + 1))
-    # else:
-    #     adj_factors = np.ones(H + 1)
-    # rk = np.sum(weights * adj_factors * ( gamma_pos + np.where(np.arange(actual_H + 1) == 0, 0.0, gamma_neg) ))
 
     returns_base = returns[actual_H + 1 : n - actual_H]
     gamma_minus = np.zeros(actual_H)

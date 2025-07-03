@@ -16,6 +16,10 @@ def compute(
 ) -> float:
     """
     Computes multipower variation (MPV) for a given list of prices.
+    "Jump-robust volatility estimation using nearest neighbor truncation"
+        by Andersen, T. G., Dobrev, D., and Schaumburg, E. (2012).
+        DOI: 10.1016/j.jeconom.2012.01.011
+
     Examples of multipower variation include:
     - Realized Variance = MVP(m=1, r=2)
     - Power Variation = MVP(m=1, r=4)

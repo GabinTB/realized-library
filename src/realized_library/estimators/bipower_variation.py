@@ -18,9 +18,12 @@ def compute(
 ) -> float:
     """
     Computes bipower variation (BPV), skip-k bipower variation, preaveraged bipower, and subsample verisons of these:
-    - If preaverage is True, computes preaveraged bipower variation.
-    - If skip is greater than 0, computes skip-k bipower variation.
-    - If sample_size and offset are provided, computes subsampled bipower variation with the specified parameters.
+    * If preaverage is True, computes preaveraged bipower variation.
+    * If skip is greater than 0, computes skip-k bipower variation.
+    * If sample_size and offset are provided, computes subsampled bipower variation with the specified parameters.
+    "Power and Bipower Variation with Stochastic Volatility and Jumps"
+        by Barndorff-Nielsen et al. (2004).
+        DOI: 10.1093/jjfinec/nbh001
 
     Parameters
     ----------

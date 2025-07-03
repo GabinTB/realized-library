@@ -9,6 +9,12 @@ def compute(
 ) -> Union[List[bool], List[np.ndarray]]:
     """
     Computes the jump detection flags based on a threshold derived from the number of observations.
+    "Detecting spurious jumps in high frequency data"
+    by Bajgrowicz, P., and Scaillet, O. (2009).
+    DOI: NA
+    "Jumps in high-frequency data: spurious detections, dynamics, and news"
+    by by Bajgrowicz, P., Scaillet, O., and Treccani, A. (2015).
+    DOI: 10.2139/ssrn.1343900
 
     Parameters
     ----------

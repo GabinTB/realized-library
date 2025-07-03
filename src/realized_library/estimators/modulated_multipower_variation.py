@@ -15,15 +15,18 @@ def compute(
 ) -> float:
     """
     Computes the modulated bipower variation (MBV) for a given list of prices.
+    "Estimation of volatility functionals in the simultaneous presence of microstructure noise and jumps"
+        by Podolskij, M., and Vetter, M. (2009).
+        DOI: 10.3150/08-BEJ167
 
     Parameters
     ----------
     prices : np.array
         Array of prices for which to compute the modulated bipower variation.
     m : int
-        TODO
+        The number of powers to use in the multipower variation. Default is 3 for tripower variation.
     r : int
-        TODO
+        The power to which the absolute returns are raised. Default is 2 for tripower variation
     M : Optional[int], optional
         The number of blocks to split the prices into. If None, it will be computed based on the length of prices.
 
