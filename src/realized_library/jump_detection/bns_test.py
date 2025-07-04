@@ -1,5 +1,6 @@
 from typing import Union, List
 import numpy as np
+from pandas import to_datetime, Timedelta
 from realized_library._utils.std_norm_dist_moments import mu_x
 from realized_library.estimators.realized_variance import compute as rv
 from realized_library.estimators.bipower_variation import compute as bpv
@@ -18,8 +19,8 @@ def compute(
 
     Parameters
     ----------
-    intraday_returns : np.ndarray
-        1D array of intraday data of shape (1,n) (n data points) for the day or 2D array of daily intraday 
+    prices : np.ndarray
+        1D array of intraday data of shape (1,n) (n data points) for the day or 2D array of daily intraday
         data with shape (m, n) (m days, n data points per day).
     timestamps : np.ndarray
         1D array of timestamps of shape (1,n) (n data points) corresponding to the intraday data, in nanoseconds 
@@ -39,30 +40,35 @@ def compute(
     
     if prices.ndim > 1:
         statistics = []
-        for p, ts in zip(prices, timestamps):
-            if len(p) < 2 or len(ts) < 2:
+        for i, price_series, timestamp_series in zip(range(prices.shape[0]), prices, timestamps):
+            if len(price_series) < 2 or len(timestamp_series) < 2:
                 raise ValueError("Each daily series must contain at least two entries.")
-            statistics.append(compute(p, ts))
+            statistics.append(compute(prices=price_series, timestamps=timestamp_series))
         return np.array(statistics)
-    
-    delta_ns = timestamps[1] - timestamps[0]  # Sampling interval in nanoseconds
-    delta_sec = delta_ns / 1e9  # Convert to seconds
-    d = delta_sec / (24 * 3600)  # Convert to fraction of day
-    t = 1
 
-    returns = np.diff(np.log(prices))
-    n = len(returns)
+    n = len(prices) - 1
     if n < 4:
         raise ValueError("Need at least 4 observations for the BNS jump test.")
+    
+    start_ts = timestamps[0]
+    start_of_day = to_datetime(timestamps[0], unit='ns').normalize()
+    start_day_ts = int(start_of_day.timestamp() * 1e9)
+    end_ts = timestamps[-1]
+    end_of_day = start_of_day + Timedelta(days=1) # Exclude, so we'll remove 1 nanosecond at next line
+    end_day_ts = int(end_of_day.timestamp() * 1e9) - 1 # ns
+    t = (end_ts - start_day_ts) / (end_day_ts - start_day_ts)
+    
+    
+
+    dt_ns = end_ts - start_ts # Sampling interval in nanoseconds
+    delta = dt_ns / (24 * 60 * 60 * 1e9)  # Convert to fraction of day
 
     mu1 = mu_x(1)
-    W = (np.pi**2 / 4) + np.pi - 5 # ≈ 0.6090
+    W = ((np.pi**2) / 4) + np.pi - 5 # ≈ 0.6090
     RV = rv(prices)
-    # BPV = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
-    BPV = mpv(prices, 2, 2) # = bpv(prices)
-    # QV = np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
-    QV = mpv(prices, 4, 2)
+    BPV = mpv(prices, 2, 2) # = bpv(prices) = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
+    QV = mpv(prices, 4, 4) #mpv(prices, 4, 2) #np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
 
-    jump_stat = ( (mu1**(-2) * BPV / RV) - 1 ) * d**(-0.5) / np.sqrt( W * max(t**(-1), QV * BPV**(-2)) )
+    jump_stat = ( (mu1**(-2) * BPV / RV) - 1 ) * (delta**(-0.5)) / np.sqrt( W * max(t**(-1), QV / (BPV**2)) )
 
     return jump_stat

@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import simps, trapz
 from typing import Callable, Literal
 
-def numerical_integral(
+def compute(
     func: Callable[[np.ndarray], np.ndarray],
     a: float,
     b: float,

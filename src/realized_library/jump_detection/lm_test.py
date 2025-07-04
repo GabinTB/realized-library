@@ -8,58 +8,86 @@ from realized_library.estimators.bipower_variation import compute as bpv
 from realized_library.estimators.multipower_variation import compute as mpv
 from realized_library._utils.std_norm_dist_moments import mu_x
 
-# # TODO: handling resampling
+# TODO: handling resampling
 def compute(
     prices: np.ndarray,
-    # timestamps: np.ndarray,
-    K: Optional[int] = 270,
-    past_day_prices: Optional[np.ndarray] = None, # When K is large, then past_day_prices could be provided to fill missing data
-    # resampling_timeframe: Optional[str] = "5m",
+    K: int, #Optional[int] = 270,
+    prev_day_prices: Optional[np.ndarray] = None, # When K is large, then prev_day_prices could be provided to fill missing data
     trading_day: int = 252,
-    alpha: float = 0.01
+    alpha: float = 0.01,
+    return_statistics: bool = False,
 ) -> np.ndarray:
     """
-    Compute...
+    Compute the Lee and Mykland Jump Test flags for a given series of prices. This test has custom thresholds 
+    provided by the authors. This test returns intraday level jump flags or statistics, which differs from the
+    other jump tests in this library that return only statistics.
     "Jumps in Financial Markets: A New Nonparametric Test and Jump Dynamics"
         By Lee, S.S., and Mykland P.A.
         DOI: 10.1093/rfs/hhm056
-    """
-    # if prices.shape != timestamps.shape:
-    #     raise ValueError("Prices and timestamps must have the same shape.")
-    # if len(timestamps) < 2:
-    #     raise ValueError("Timestamps must contain at least two entries.")
-    # if np.diff(timestamps, n=2).any():
-    #     raise ValueError("Timestamps must be equally spaced. Please resample the data before applying the test.")
     
-    if past_day_prices is not None:
-        if len(past_day_prices) < K:
-            raise ValueError(f"If past_day_prices provided, it must contain at least {K} entries to be relevant, but got {len(past_day_prices)}.")
-        past_day_prices = past_day_prices[K:] # First K entries are not needed
-        final_prices = np.concatenate((past_day_prices, prices))
+    Parameters
+    ----------
+    prices : np.ndarray
+        1D array of prices for the day or 2D array of daily prices with shape (m, n) (m days, n data points per day).
+    K : int
+        The number of observations to consider for the jump test. It should be a positive integer.
+    prev_day_prices : Optional[np.ndarray]
+        Optional. If provided, it should be a 1D array of prices from the previous day. It will be concatenated with the current day's prices to form the final series.
+    trading_day : int
+        The number of trading days in a year. Default is 252, which is common for many stock markets.
+    alpha : float
+        The significance level for the test. Default is 0.01, which corresponds to a 99% confidence level.
+
+    Returns
+    -------
+    np.ndarray
+        A boolean array indicating the presence of jumps in the price series. True indicates a jump,
+        and False indicates no jump.
+    
+    Raises
+    ------
+    ValueError
+        If the input prices are empty, if K is not a positive integer, if prev_day_prices is provided but does not contain enough entries, or if the timestamps are not equally spaced.
+    Warning
+        If the computed K is outside the suggested bounds based on the number of observations.
+    """
+    
+    if prev_day_prices is not None:
+        if len(prev_day_prices) < K:
+            raise ValueError(f"If prev_day_prices provided, it must contain at least {K} entries to be relevant, but got {len(prev_day_prices)}.")
+        prev_day_prices = prev_day_prices[-K:]
+        final_prices = np.concatenate((prev_day_prices, prices))
     else:
         final_prices = prices
     
-    # if resampling_timeframe is not None:
-    #     prices, timestamps = resampling(prices=prices, timestamps=timestamps, sample_size=resampling_timeframe)
-
-    n = len(prices)
+    n = len(prices) - 1
     lb = np.sqrt(trading_day * n)
     hb = trading_day * n
-    if K is None:
-        K = min( n // 2, int((lb + hb) * 0.5) )
+    # if K is None:
+    #     K = min( n // 2, int((lb + hb) * 0.5) )
     if not lb <= K <= hb:
         warnings.warn(f"Lee and Mykland Test suggests {lb} < K < {hb} but you chose K = {K}.")
 
-    if past_day_prices is not None:
-        subsamples = sliding_window_view(np.log(final_prices), window_shape=K)[K:] # We should have len(past_day_prices) == K
+    if prev_day_prices is not None:
+        subsamples = sliding_window_view(final_prices, window_shape=K)[-n:] # We should have len(prev_day_prices) == K
+        start_idx_jup_flags = 0
     else:
-        subsamples = sliding_window_view(np.log(final_prices), window_shape=K)
+        subsamples = sliding_window_view(final_prices, window_shape=K)
+        start_idx_jup_flags = K
     
-    Li = np.array([(sample[-1]/sample[-2]) / bpv(sample) for sample in subsamples if len(sample) >= 2])
-    # Li = np.array([(sample[-1]/sample[-2]) / mpv(sample, 2, 2) for sample in subsamples])
+    Li = np.array([ np.log(sample[-1] / sample[-2]) / bpv(sample) if len(sample) >= 2 else None for sample in subsamples ])
+    # Li = np.array([ np.log(sample[-1] / sample[-2]) / mpv(sample, 2, 2) if len(sample) >= 2 else None for sample in subsamples ])
+
     c = mu_x(1)
-    Sn = (c*(2*np.log(n))**0.5)**(-1)
+    Sn = 1 / (c * (2 * np.log(n))**0.5)
     Cn = (2 * np.log(n))**0.5 / c - 0.5 * (np.log(np.pi) + np.log(np.log(n))) * Sn
-    threshold = -np.log(-np.log(1-alpha))
+    statistics = (np.abs(Li) - Cn) / Sn
+    threshold = -np.log(-np.log(1 - alpha))
+
+    if return_statistics:
+        return np.max(np.abs(statistics))
     
-    return (np.abs(Li) - Cn) * Sn**(-1) > threshold # Jump Flags: True if there is jump, False otherwise
+    jump_flags = np.zeros(n, dtype=bool)
+    jump_flags[start_idx_jup_flags:] = statistics > threshold # Jump Flags: True if there is jump, False otherwise
+    
+    return jump_flags

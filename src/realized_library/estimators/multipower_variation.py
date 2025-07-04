@@ -21,12 +21,13 @@ def compute(
         DOI: 10.1016/j.jeconom.2012.01.011
 
     Examples of multipower variation include:
-    - Realized Variance = MVP(m=1, r=2)
-    - Power Variation = MVP(m=1, r=4)
+    - Power Variation = MVP(m=1, r=2) = Realized Variance
     - Bipower Variation = MVP(m=2, r=2)
     - Tripower Variation = MVP(m=3, r=2)
-    - Tripower Quarticity = MVP(m=3, r=4)
     - Quadpower Variation = MVP(m=4, r=2)
+    - Power Quarticity = MVP(m=1, r=4)
+    - Bipower Quarticity = MVP(m=2, r=4)
+    - Tripower Quarticity = MVP(m=3, r=4)
     - Quadpower Quarticity = MVP(m=4, r=4)
 
     Parameters
@@ -92,7 +93,7 @@ def compute(
                 if idx == 0:
                     base_count = n - 1
                 total_count += n - 1
-                dmr = mu_x(r/m)**(-m)
+                dmr = 1 / (mu_x(r/m)**m)
                 scaling = n ** ( r * 0.5 - 1.0 )
                 mvs[idx] = dmr * scaling * np.sum(product_terms)
 
@@ -103,7 +104,7 @@ def compute(
     returns = np.diff(np.log(prices))
     n = len(returns)
     
-    mklr_windows = sliding_window_view(returns, window_shape=m)     # Shape: (len(mklrs)-I+1, I)
+    mklr_windows = sliding_window_view(returns, window_shape=m)  # Shape: (len(mklrs)-I+1, I)
     product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
 
     dmr = mu_x(r/m)**(-m)
