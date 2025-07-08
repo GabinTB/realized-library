@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from realized_library.utils.subsampling import compute as subsample
-from realized_library.estimators.realized_variance import compute as rv
+from realized_library.estimators.variance.realized_variance import compute as rv
 
 def compute(
     prices: np.ndarray,

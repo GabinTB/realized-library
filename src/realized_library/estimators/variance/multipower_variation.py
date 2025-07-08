@@ -1,4 +1,3 @@
-import warnings
 from typing import Optional, Union
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
@@ -88,12 +87,12 @@ def compute(
             else:
                 returns = np.diff(np.log(sample))
                 n = len(returns)
-                mklr_windows = sliding_window_view(returns, window_shape=m)  # Shape: (len(mklrs)-I+1, I)
+                mklr_windows = sliding_window_view(returns, window_shape=m)
                 product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
                 if idx == 0:
                     base_count = n - 1
                 total_count += n - 1
-                dmr = 1 / (mu_x(r/m)**m)
+                dmr = mu_x(r/m)**(-m)
                 scaling = n ** ( r * 0.5 - 1.0 )
                 mvs[idx] = dmr * scaling * np.sum(product_terms)
 
@@ -104,11 +103,12 @@ def compute(
     returns = np.diff(np.log(prices))
     n = len(returns)
     
-    mklr_windows = sliding_window_view(returns, window_shape=m)  # Shape: (len(mklrs)-I+1, I)
+    mklr_windows = sliding_window_view(returns, window_shape=m)
     product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
 
+    # np.sum(rs) == r, so we use r directly
     dmr = mu_x(r/m)**(-m)
     scaling = n ** ( r * 0.5 - 1.0 )
     biais_scaling = n / (n - m + 1)
 
-    return dmr * biais_scaling * scaling * np.sum(product_terms)
+    return  biais_scaling * scaling * dmr * np.sum(product_terms)

@@ -1,10 +1,7 @@
-import warnings
 from typing import Optional, Union
 import numpy as np
 from pandas import to_timedelta
 from realized_library.utils.subsampling import compute as subsample
-
-SCALE = np.pi / (np.pi - 2)
 
 def compute(
     prices: np.ndarray,
@@ -13,7 +10,7 @@ def compute(
     offset: Union[str, int, None] = None,
 ) -> float:
     """
-    Compute the realized Median Realized Variance (MedRV) from price data.
+    Compute the realized Median Realized Quarticity (MedRQ) from price data.
     "Jump-robust volatility estimation using nearest neighbor truncation"
         by Andersen et al. (2012).
         DOI: 10.1016/j.jeconom.2012.01.011
@@ -71,11 +68,10 @@ def compute(
         return np.mean(medRVs)
     
     else:
-        m = len(prices)
-        if m < 2:
+        N = len(prices)
+        if N < 2:
             raise ValueError("At least two prices are required to compute the MedRV.")
-        log_prices = np.log(prices)
-        returns = np.diff(log_prices)
-        matrix = np.column_stack([returns[:-1], returns[1:]])  # Rolling window: each row has returns^2 at t, t+1
+        returns = np.diff(np.log(prices))
+        matrix = np.column_stack([returns[:-2], returns[1:-1], returns[2:]]) # Rolling window: each row has returns^2 at t, t+1, t+2
         
-        return SCALE * (m / (m - 1)) * np.sum(np.min(np.abs(matrix), axis=1)**2)
+        return ( np.pi / (6 - 4 * np.sqrt(3) + np.pi) ) * (N / (N - 2)) * np.sum(np.median(np.abs(matrix), axis=1)**2)

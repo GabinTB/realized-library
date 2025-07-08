@@ -2,10 +2,8 @@ import warnings
 from typing import Optional
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
-from realized_library.utils.resampling import compute as resampling
-from realized_library.utils.subsampling import compute as subsampling
-from realized_library.estimators.bipower_variation import compute as bpv
-from realized_library.estimators.multipower_variation import compute as mpv
+from realized_library.estimators.variance.bipower_variation import compute as bpv
+from realized_library.estimators.variance.multipower_variation import compute as mpv
 from realized_library._utils.std_norm_dist_moments import mu_x
 
 # TODO: handling resampling
@@ -60,7 +58,7 @@ def compute(
     else:
         final_prices = prices
     
-    n = len(prices) - 1
+    n = len(prices)
     lb = np.sqrt(trading_day * n)
     hb = trading_day * n
     # if K is None:
@@ -68,15 +66,15 @@ def compute(
     if not lb <= K <= hb:
         warnings.warn(f"Lee and Mykland Test suggests {lb} < K < {hb} but you chose K = {K}.")
 
+    subsamples = sliding_window_view(final_prices, window_shape=K)
     if prev_day_prices is not None:
-        subsamples = sliding_window_view(final_prices, window_shape=K)[-n:] # We should have len(prev_day_prices) == K
-        start_idx_jup_flags = 0
+        subsamples = subsamples[-n:] # We should have len(prev_day_prices) == K
+        start_idx_jump_flags = 0
     else:
-        subsamples = sliding_window_view(final_prices, window_shape=K)
-        start_idx_jup_flags = K
+        start_idx_jump_flags = K
     
-    Li = np.array([ np.log(sample[-1] / sample[-2]) / bpv(sample) if len(sample) >= 2 else None for sample in subsamples ])
-    # Li = np.array([ np.log(sample[-1] / sample[-2]) / mpv(sample, 2, 2) if len(sample) >= 2 else None for sample in subsamples ])
+    Li = np.array([0.0] + [ np.log(subsamples[i][-1] / subsamples[i-1][-1]) / bpv(subsamples[i-1]) for i in range(1, len(subsamples)) ])
+    # Li = np.array([0.0] + [ np.log(subsamples[i][-1] / subsamples[i-1][-1]) / mpv(subsamples[i-1]) for i in range(1, len(subsamples)) ])
 
     c = mu_x(1)
     Sn = 1 / (c * (2 * np.log(n))**0.5)
@@ -88,6 +86,6 @@ def compute(
         return np.max(np.abs(statistics))
     
     jump_flags = np.zeros(n, dtype=bool)
-    jump_flags[start_idx_jup_flags:] = statistics > threshold # Jump Flags: True if there is jump, False otherwise
+    jump_flags[start_idx_jump_flags:] = statistics > threshold # Jump Flags: True if there is jump, False otherwise
     
     return jump_flags

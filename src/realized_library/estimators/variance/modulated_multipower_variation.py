@@ -1,14 +1,11 @@
 from typing import Optional
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
-from scipy.special import gamma
-from realized_library.estimators.realized_variance import compute as rv
-
-C1: float = 2.0
-C2: float = 2.3
+from realized_library.estimators.variance.realized_variance import compute as rv
 
 def compute(
     prices: np.array,
+    omega2_est: float,
     m: int = 2,     # Bipower variation by default
     r: int = 2,     # Default ri for bipower variation
     M: Optional[int] = None,
@@ -39,15 +36,18 @@ def compute(
         raise ValueError("At least two prices are required to compute modulated bipower variation.")
 
     n = len(prices)
-    K = int(C1 * n**(0.5) )                              # Lag lenght in ticks
-    M = int(n**(0.5) / (C1 * C2)) if M is None else M    # Number of blocks
-    rs = np.ones(m) * (r/m)
 
+    c2 = 8/5
+    c1 = np.sqrt( 18 / ((c2 - 1) * (4 - c2)) ) * np.sqrt(omega2_est / rv(prices))  # c1 is a scaling constant based on omega2_est and realized variance
+    K = int(c1 * n**(0.5) )                              # Lag lenght in ticks
+    M = int(n**(0.5) / (c1 * c2)) if M is None else M    # Number of blocks
+    rs = np.ones(m) * (r/m)
+    
     log_prices = np.log(prices)
     blocks = np.array_split(log_prices, M) # Non-overlapping blocks of log prices
 
     # Mean K-lagged returns for each non-onverlapping block
-    mklr = np.array([1 / ( (n / M) - K + 1 ) * np.sum(block[K:] - block[:-K]) for block in blocks if len(block) > K])
+    mklr = np.array([np.sum(block[K:] - block[:-K]) / ( (n / M) - K + 1 ) for block in blocks if len(block) > K])
     if len(mklr) < 2:
         return 0.0
     
@@ -55,6 +55,5 @@ def compute(
     product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
 
     scaling = n ** ( r * 0.25 - 0.5 )
-    biais_scaling = n / (n - m + 1)
 
-    return biais_scaling * scaling * np.sum(product_terms)
+    return  scaling * np.sum(product_terms)

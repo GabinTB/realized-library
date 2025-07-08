@@ -1,9 +1,10 @@
 from typing import Union
 import numpy as np
+from pandas import to_datetime, Timedelta
 from realized_library._utils.std_norm_dist_moments import mu_x
-from realized_library.estimators.realized_variance import compute as rv
-from realized_library.estimators.bipower_variation import compute as bpv
-from realized_library.estimators.multipower_variation import compute as mpv
+from realized_library.estimators.variance.realized_variance import compute as rv
+from realized_library.estimators.variance.bipower_variation import compute as bpv
+from realized_library.estimators.variance.multipower_variation import compute as mpv
 
 
 def compute(
@@ -46,13 +47,23 @@ def compute(
     if n < 4:
         raise ValueError("Need at least 4 observations for the ABD test.")
 
-    delta_1 = timestamps[1] - timestamps[0] # Sampling interval in nanoseconds
-    delta = delta_1 / (24 * 60 * 60 * 1e9)  # Convert to fraction of day
+    start_ts = timestamps[0]
+    start_of_day = to_datetime(start_ts, unit='ns').normalize()
+    start_day_ts = int(start_of_day.timestamp() * 1e9)
+    end_ts = timestamps[-1]
+    end_of_day = start_of_day + Timedelta(days=1) # Exclude, so we'll remove 1 nanosecond at next line
+    end_day_ts = int(end_of_day.timestamp() * 1e9) - 1 # ns
+    t = (end_ts - start_day_ts) / (end_day_ts - start_day_ts)
+
+    dt_ns = timestamps[1] - start_ts # Sampling interval in nanoseconds
+    delta = dt_ns / (24 * 60 * 60 * 1e9)  # Convert to fraction of day
+
     mu1 = mu_x(1)
     RV = rv(prices)
     BPV = mpv(prices, 2, 2) # = bpv(prices)
-    TQ = mpv(prices, 3, 4)
+    TPQ = mpv(prices, 3, 4)
 
-    jump_stat = ( delta**(-0.5) ) * (RV - BPV) / ( ((mu1**(-4)) + 2 * (mu1**(-2)) - 5) * TQ )**0.5
+    # jump_stat = ( delta**(-0.5) ) * ( max(0, RV - BPV) * RV**(-1) ) / ( (mu1**(-4) + 2 * mu1**(-2) - 5) * max(1, TPQ * BPV**(-2)) )**0.5
+    jump_stat = ( delta**(-0.5) ) * ( max(0, RV - BPV) * RV**(-1) ) / ( (mu1**(-4) + 2 * mu1**(-2) - 5) * max(t**(-1), TPQ * BPV**(-2)) )**0.5
 
     return jump_stat

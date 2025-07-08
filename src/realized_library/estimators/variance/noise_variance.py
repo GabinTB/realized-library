@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional, Literal
-from realized_library.estimators.realized_variance import compute as rv
-from realized_library.estimators.realized_kernel import compute as rk
+from realized_library.estimators.variance.realized_variance import compute as rv
+from realized_library.estimators.variance.realized_kernel import compute as rk
 
 def _rv_sparse(
     prices: np.ndarray,
@@ -62,7 +62,7 @@ def _rv_sparse(
         if bnhls_debiasing_params is None:
             raise ValueError("Bandi-Nielsen-Hansen-Lunde-Shephard (BNHLS) debiasing requires parameters to be provided.")
         resampling_freq = bnhls_debiasing_params.get('resampling_freq', None)
-        bandwidth = bnhls_debiasing_params.get('bandwidth', len(resampling_freq) ** (1/3))
+        bandwidth = bnhls_debiasing_params.get('bandwidth', len(prices) ** (1/3))
         kernel = bnhls_debiasing_params.get('kernel', None)
         if resampling_freq is None or bandwidth is None or kernel is None:
             raise ValueError("Bandi-Nielsen-Hansen-Lunde-Shephard (BNHLS) debiasing requires 'resampling_freq', 'bandwidth', and 'kernel' parameters.")

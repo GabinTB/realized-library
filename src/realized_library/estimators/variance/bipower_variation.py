@@ -4,7 +4,7 @@ import numpy as np
 from pandas import to_timedelta
 from realized_library.utils.subsampling import compute as subsample
 from realized_library.utils.preaverage import compute as preaverage
-from realized_library.estimators.noise_variance import compute as noise_variance_estimation
+from realized_library.estimators.variance.noise_variance import compute as noise_variance_estimation
 
 def compute(
     prices: list[float],

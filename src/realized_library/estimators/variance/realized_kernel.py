@@ -2,8 +2,8 @@ import warnings
 from dataclasses import dataclass
 import numpy as np
 from typing import Literal, Union, Callable
-from realized_library.utils.derivative_approximation import first_derivative, second_derivative, third_derivative, fourth_derivative
-from realized_library.utils.integral_approximation import compute as numerical_integral
+from realized_library._utils.derivative_approximation import first_derivative, second_derivative, third_derivative, fourth_derivative
+from realized_library._utils.integral_approximation import compute as numerical_integral
 
 # Ressources:
 # - http://dx.doi.org/10.2139/ssrn.620203
