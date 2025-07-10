@@ -189,8 +189,5 @@ def compute(
             bnhls_debiasing_params=bnhls_debiasing_params
         )
         noise_estimates.append(noise_estimate_i)
-    
-    # if len(noise_estimates) != q - 1:
-    #     raise ValueError("We didn't obtain q distinct realised variances")
 
     return np.mean(noise_estimates)

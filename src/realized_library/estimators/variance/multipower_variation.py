@@ -2,6 +2,7 @@ from typing import Optional, Union
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 from pandas import to_timedelta
+from realized_library._utils.hft_timeseries_data import get_time_delta
 from realized_library._utils.std_norm_dist_moments import mu_x
 from realized_library.utils.subsampling import compute as subsample
 
@@ -11,7 +12,8 @@ def compute(
     r: int = 2,       # Default tripower variation
     timestamps: Optional[np.array] = None,
     sample_size: Optional[Union[int, str]] = None,
-    offset: Optional[Union[int, str]] = None
+    offset: Optional[Union[int, str]] = None,
+    correct_scaling_bias: bool = True
 ) -> float:
     """
     Computes multipower variation (MPV) for a given list of prices.
@@ -49,10 +51,13 @@ def compute(
     float
         The computed multipower variation.
     """
-    if len(prices) < 2:
-        raise ValueError("At least two prices are required to compute bipower variation.")
+    N = len(prices) - 1  # Number of returns = number of prices - 1
+    if N < 1:
+        raise ValueError("At least two prices are required to compute multipower variation.")
     
     rs = np.ones(m) * (r/m)
+    m_r = mu_x(r/m)
+    biais_scaling = N / (N - m + 1) if correct_scaling_bias else 1.0
 
     if sample_size is not None and offset is not None:
         if timestamps is None:
@@ -78,37 +83,29 @@ def compute(
             nb_samples=nb_samples
         )
 
-        N = len(prices)
         mvs = np.zeros(len(price_subsamples))
         total_count = 0
-        for idx, sample in enumerate(price_subsamples):
-            if len(sample) < m + 1:
+        for idx in range(len(price_subsamples)):
+            price_sample = price_subsamples[idx]
+            timestamp_sample = timestamps_subsamples[idx]
+            if len(price_sample) < m + 1:
                 mvs[idx] = np.nan
             else:
-                returns = np.diff(np.log(sample))
+                returns = np.diff(np.log(price_sample))
                 n = len(returns)
                 mklr_windows = sliding_window_view(returns, window_shape=m)
                 product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
                 if idx == 0:
-                    base_count = n - 1
-                total_count += n - 1
-                dmr = mu_x(r/m)**(-m)
-                scaling = n ** ( r * 0.5 - 1.0 )
-                mvs[idx] = dmr * scaling * np.sum(product_terms)
+                    base_count = n
+                total_count += n
+                delta = get_time_delta(timestamps=timestamp_sample)
+                mvs[idx] = ( (delta**(1 - r * 0.5)) / (m_r**m) ) * np.sum(product_terms)
 
-        mvSS = np.sum(mvs) * (base_count / total_count)
-        biais_scaling = N / (N - m + 1)
-        return biais_scaling * mvSS
+        return biais_scaling * np.sum(mvs) * (base_count / total_count)
 
     returns = np.diff(np.log(prices))
-    n = len(returns)
-    
     mklr_windows = sliding_window_view(returns, window_shape=m)
     product_terms = np.prod(np.abs(mklr_windows) ** rs, axis=1)  # Products of r-powers of absolute returns
+    delta = get_time_delta(timestamps=timestamps, N=len(returns))
 
-    # np.sum(rs) == r, so we use r directly
-    dmr = mu_x(r/m)**(-m)
-    scaling = n ** ( r * 0.5 - 1.0 )
-    biais_scaling = n / (n - m + 1)
-
-    return  biais_scaling * scaling * dmr * np.sum(product_terms)
+    return  biais_scaling * ( (delta**(1 - r * 0.5)) / (m_r**m) ) * np.sum(product_terms)

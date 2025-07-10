@@ -14,7 +14,8 @@ def compute(
     skip: int = 0,
     timestamps: Optional[np.array] = None,
     sample_size: Optional[Union[int, str]] = None,
-    offset: Optional[Union[int, str]] = None
+    offset: Optional[Union[int, str]] = None,
+    correct_scaling_bias: bool = True
 ) -> float:
     """
     Computes bipower variation (BPV), skip-k bipower variation, preaveraged bipower, and subsample verisons of these:
@@ -87,12 +88,12 @@ def compute(
                 returns = np.diff(np.log(sample))
                 n = len(returns)
                 if i == 0:
-                    base_count = n - 1 - skip
+                    base_count = n - skip
                 bvs[i] = (np.pi/2.0) * np.abs(np.dot(np.abs(returns[1+skip:]), np.abs(returns[:-1-skip])))
-                total_count += n - 1 - skip
-        bvSS = np.sum(bvs) * (base_count / total_count)
-        bias_scale = m / (m - 1.0 - skip)
-        return bias_scale * bvSS
+                total_count += n - skip
+        bias_scale = m / (m - 1.0 - skip) if correct_scaling_bias else 1.0
+        
+        return bias_scale * np.sum(bvs) * (base_count / total_count)
 
     
     returns = np.diff(np.log(prices))
@@ -137,5 +138,5 @@ def compute(
 
         # bv = (np.pi/2.0) * np.abs(np.sum(np.abs(returns[1+skip:] * returns[:-1-skip])))
         bv = (np.pi/2.0) * np.abs(np.dot(np.abs(returns[1+skip:]), np.abs(returns[:-1-skip])))
-        bias_scale =  n / (n - 1.0 - skip)
+        bias_scale =  n / (n - 1.0 - skip) if correct_scaling_bias else 1.0
         return bias_scale * bv

@@ -1,6 +1,7 @@
 from typing import Union, List
 import numpy as np
 from pandas import to_datetime, Timedelta
+from realized_library._utils.hft_timeseries_data import get_time_delta
 from realized_library._utils.std_norm_dist_moments import mu_x
 from realized_library.estimators.variance.realized_variance import compute as rv
 from realized_library.estimators.variance.bipower_variation import compute as bpv
@@ -56,16 +57,15 @@ def compute(
     end_ts = timestamps[-1]
     end_of_day = start_of_day + Timedelta(days=1) # Exclude, so we'll remove 1 nanosecond at next line
     end_day_ts = int(end_of_day.timestamp() * 1e9) - 1 # ns
+    
     t = (end_ts - start_day_ts) / (end_day_ts - start_day_ts)
-
-    dt_ns = timestamps[1] - start_ts # Sampling interval in nanoseconds
-    delta = dt_ns / (24 * 60 * 60 * 1e9)  # Convert to fraction of day
+    delta = get_time_delta(timestamps=timestamps)
 
     mu1 = mu_x(1)
     W = ((np.pi**2) / 4) + np.pi - 5 # ≈ 0.6090
     RV = rv(prices)
     BPV = mpv(prices, 2, 2) # = bpv(prices) = (np.sum(np.abs(returns[1:]) * np.abs(returns[:-1]))) / (mu1**2)
-    QPQ = mpv(prices, 4, 4) #mpv(prices, 4, 2) #np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
+    QPQ = mpv(prices, 4, 4) # mpv(prices, 4, 2) #np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3]))
 
     # jump_stat = ( (mu1**(-2) * BPV / RV) - 1 ) * (delta**(-0.5)) / np.sqrt( W * max(1, QPQ / (BPV**2)) )
     jump_stat = ( (mu1**(-2) * BPV / RV) - 1 ) * (delta**(-0.5)) / np.sqrt( W * max(t**(-1), QPQ / (BPV**2)) )
