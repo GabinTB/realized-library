@@ -10,12 +10,12 @@ def compute(
     p: int = 2, # Default is 2 for Realized Truncated Volatility
     alpha: Optional[float] = None,
     omega: float = 0.47,
-    beta: float = 0.2,
+    # beta: float = 0.2,
     timestamps: Optional[np.array] = None,
     sample_size: Optional[Union[int, str]] = None,
     offset: Optional[Union[int, str]] = None,
     correct_scaling_bias: bool = True
-) -> Union[float, np.ndarray]:
+) -> float:
     """
     Compute the Aït-Sahalia and Jacod (ASJ) Realized Truncated pth Variation for a given series of prices.
     "Testing for Jumps in a Discretely Observed Process"
@@ -24,15 +24,37 @@ def compute(
 
     Parameters
     ----------
-    TODO: Add parameters description
+    prices : np.ndarray
+        Array of prices for which the truncated multipower variation is computed.
+    p : int, optional
+        The order of the multipower variation. Default is 2.
+    alpha : float, optional
+        Threshold parameter for truncation. If None, it will be computed based on the data.
+    omega : float, optional
+        Parameter for the truncation condition. Default is 0.47.
+    timestamps : np.ndarray, optional
+        Timestamps corresponding to the prices. Required if sample_size and offset are provided.
+    sample_size : int or str, optional
+        Size of the sample to be used for subsampling. Can be an integer or a string representing a time duration.
+    offset : int or str, optional
+        Offset between samples. Can be an integer or a string representing a time duration.
+    correct_scaling_bias : bool, default True
+        Whether to apply bias correction to the scaling factor.
 
     Returns
     ----------
-    TODO: Add return description
+    float
+        The computed Realized Truncated pth Variation.
 
     Raises
     ----------
-    TODO: Add exceptions description
+    ValueError
+        If alpha is not provided or is less than or equal to 0.
+        If omega is not between 0 and 0.5.
+        If p is not provided or is not a positive integer.
+        If timestamps are not provided when sample_size and offset are used.
+        If sample_size is not a multiple of offset when both are provided.
+        If prices contain less than two elements.
     """
     if alpha is not None and alpha <= 0:
         raise ValueError("Alpha must be greater than 0.")
@@ -98,8 +120,8 @@ def compute(
     delta = get_time_delta(timestamps=timestamps, N=len(returns))
     if alpha is None:
         alpha_truncation = np.where(np.abs(returns) <= delta**(0.5), 1, 0)
-        if beta is None:
-            beta = np.sum(np.abs(returns)**p) * alpha_truncation
+        # if beta is None:
+        beta = np.sum(np.abs(returns)**p) * alpha_truncation
         alpha = 5 * (beta**0.5)
     truncation = np.where(np.abs(returns) <= alpha * (delta**omega), 1, 0)
 
