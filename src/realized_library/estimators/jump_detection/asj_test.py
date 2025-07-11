@@ -7,6 +7,28 @@ from realized_library.utils.resampling import compute as resample
 from realized_library.estimators.variance.trucated_multipower_variation import compute as tpv
 from realized_library.estimators.variance.multipower_variation import compute as mpv
 
+def is_jump(
+    value: float,
+    alpha: float = 0.01,
+) -> float:
+    """
+    Check if the value exceeds the threshold i.e. if the null hypothesis of no jump can be rejected,
+    based on the significance level alpha.
+    
+    Parameters
+    ----------
+    value : float
+        The computed jump test statistic.
+    alpha : float
+        The significance level for the test. Default is 0.01, which corresponds to a 99% confidence level.
+
+    Returns
+    -------
+    bool
+        True if the value indicates a jump, False otherwise.
+    """
+    return abs(value) > norm.ppf(1 - alpha/2)  # Two-tailed test, so we divide alpha by 2
+
 def compute(
     prices: np.ndarray,
     timestamps: np.ndarray,
@@ -54,20 +76,52 @@ def compute(
 
     Parameters
     ----------
-    TODO: Add parameters description
+    prices : np.ndarray
+        1D array of intraday data of shape (1,n) (n data points) for the day or 2D array of daily intraday
+        data with shape (m, n) (m days, n data points per day).
+    timestamps : np.ndarray
+        1D array of timestamps of shape (1,n) (n data points) corresponding to the intraday data, in nanoseconds 
+        since epoch, or 2D array of daily timestamps with shape (m, n) (m days, n data points per day).
+    A_estimator : Literal["truncated", "multipower"]
+        The estimator to use for A(p). Default is "multipower".
+    p : Optional[int]
+        The order of the variation. Must be greater than 3. Default is 4.
+    k : Optional[int]
+        The number of observations to consider for the jump test. Must be greater than or equal to 2. Default is 2.
+    alpha : Optional[float]
+        The significance level for the test. Default is 4*0.2, which corresponds to a 99% confidence level.
+    omega_bar : Optional[float]
+        The omega_bar parameter for the truncated variation estimator. Default is 0.47.
 
     Returns
-    ----------
-    TODO: Add return description
+    -------
+    Union[float, np.ndarray]
+        The ASJ jump test statistic for the day or an array of statistics for multiple days.
 
     Raises
-    ----------
-    TODO: Add exceptions description
+    ------
+    ValueError
+        If p is not provided or is less than or equal to 3, or if k is not provided or is less than 2.
+        If the prices and timestamps do not have the same shape, or if the timestamps do not contain at least two entries.
+        If the timestamps are not equally spaced.
+        If the prices are not provided or do not contain at least two entries.
+        If alpha or omega_bar is not provided when using the truncated variation estimator.
+        If the A_estimator is not one of "truncated" or "multipower".
+    Warning
+        If the computed k is outside the suggested bounds based on the number of observations.
     """
     if p is None or p <= 3:
         raise ValueError("p must be provided and must respect p > 3.")
     if k is None or k < 2:
             raise ValueError("k must be provided and must respect k ≥ 2.")
+    
+    if prices.ndim > 1:
+        statistics = []
+        for price_series, timestamp_series in zip(prices, timestamps):
+            if len(price_series) < 2 or len(timestamp_series) < 2:
+                raise ValueError("Each daily series must contain at least two entries.")
+            statistics.append(compute(prices=price_series, timestamps=timestamp_series, A_estimator=A_estimator, p=p, k=k, alpha=alpha, omega_bar=omega_bar))
+        return np.array(statistics)
 
     def A_p(p_: float) -> float:
         """

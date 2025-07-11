@@ -11,6 +11,28 @@ from realized_library.estimators.variance.multipower_variation import compute as
 from realized_library.estimators.variance.min_rv import compute as min_rv
 from realized_library.estimators.variance.med_rv import compute as med_rv
 
+def is_jump(
+    value: float,
+    alpha: float = 0.01,
+) -> float:
+    """
+    Check if the value exceeds the threshold i.e. if the null hypothesis of no jump can be rejected,
+    based on the significance level alpha.
+    
+    Parameters
+    ----------
+    value : float
+        The computed jump test statistic.
+    alpha : float
+        The significance level for the test. Default is 0.01, which corresponds to a 99% confidence level.
+
+    Returns
+    -------
+    bool
+        True if the value indicates a jump, False otherwise.
+    """
+    return abs(value) > norm.ppf(1 - alpha/2)  # Two-tailed test, so we divide alpha by 2
+
 def _kappa(lambda_):
     """
     Compute κ(λ) = ∫ x² Φ(x√λ) (Φ(x√λ) - 1) ϕ(x) dx where Φ is the cumulative distribution function
@@ -52,7 +74,7 @@ def compute(
     very_noisy_data: bool = False
 ) -> Union[float, np.ndarray]:
     """
-    Compute the Lee and Mykland Jump Test flags for a given series of prices.
+    Compute the Jiang and Oomen Jump Test flags for a given series of prices.
     "Testing for Jumps When Asset Prices are Observed with Noise - A Swap Variance Approach"
         By Jiang G.J., and Oomen R.C.A. (2008).
         DOI: 10.1016/j.jeconom.2008.04.009
@@ -91,6 +113,13 @@ def compute(
     ValueError
         If the test parameter is not one of "difference", "logarithmic", or "ratio".
     """
+    if prices.ndim > 1:
+        statistics = []
+        for price_series in prices:
+            if len(price_series) < 2:
+                raise ValueError("Each daily series must contain at least two entries.")
+            statistics.append(compute(price_series, test=test, p=p, correct_noise=correct_noise, omega2_est=omega2_est, very_noisy_data=very_noisy_data))
+        return np.array(statistics)
 
     N = len(prices)
 
