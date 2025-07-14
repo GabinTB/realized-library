@@ -31,7 +31,7 @@ def is_jump(
     bool
         True if the value indicates a jump, False otherwise.
     """
-    return abs(value) > norm.ppf(1 - alpha/2)  # Two-tailed test, so we divide alpha by 2
+    return abs(value) > norm.ppf(1 - alpha)
 
 def _kappa(lambda_):
     """
@@ -165,7 +165,7 @@ def compute(
             X_0_1 = omega_SwV / (1 + _Cx(gamma)) # Noise corrected estimation of Integrated Sixticity = X_(0,1)*
         
         omega_SwV = 4 * N * (omega2_est**3) + 12 * (omega2_est**2) * BPV + 8 * omega2_est * (1/N) * Q_0_1 + (5/3) * (1/(N**2)) * X_0_1
-        N = 1 # In the noise corrected case, N is not present in the test statistic so we set it to 1
+        N = 1 # In the noise corrected case, N is not present in the test statistic so we neutralize it to 1
 
     if test == "difference":
         return (SwV - RV) * N / np.sqrt(omega_SwV)

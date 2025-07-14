@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Union, Optional, Literal
 import numpy as np
 from scipy.stats import norm
 from realized_library._utils.hft_timeseries_data import get_time_delta
@@ -27,11 +27,13 @@ def is_jump(
     bool
         True if the value indicates a jump, False otherwise.
     """
-    return abs(value) > norm.ppf(1 - alpha/2)  # Two-tailed test, so we divide alpha by 2
+    return abs(value) > norm.ppf(1 - alpha)
 
 def compute(
     prices: np.ndarray,
     timestamps: Optional[np.ndarray] = None,
+    test: Literal["difference", "ratio"] = "ratio",
+    correct_for_noise: bool = True,
 ) -> Union[float, np.ndarray]:
     """
     Compute the ABD (Andersen, Bollerslev, and Diebold) Jump Test statistic for one day.
@@ -70,10 +72,20 @@ def compute(
     delta = get_time_delta(timestamps=timestamps, N=n)
     mu1 = mu_x(1)
 
-    RV = rv(prices)
-    BV = (mu1**(-2)) * ((1 - 2*delta)**(-1)) * np.sum(np.abs(returns[1:] * returns[:-1])) # We don't use bpv(prices) or mpv(prices, 2, 2) since the definition is slightly different to allow for noise robustness
-    TQ = (delta**(-1)) * (mu_x(4/3)**(-3)) * ((1 - 4*delta)**(-1)) * np.sum(np.prod(np.power(np.abs(np.matrix([returns[2:], returns[1:-1], returns[:-2]]).T), 4/3), axis=1)) # Similarly, we don't use mpv(prices, 3, 4) since the definition is slightly different to allow for noise robustness
+    if not correct_for_noise:
+        RV = rv(prices)
+        BV = bpv(prices) # = mpv(prices, 2, 2)
+        TQ = mpv(prices, 3, 4)
+    else:
+        RV = rv(prices)
+        BV = (mu1**(-2)) * ((1 - 2*delta)**(-1)) * np.sum(np.abs(returns[2:] * returns[:-2]))
+        TQ = (delta**(-1)) * (mu_x(4/3)**(-3)) * ((1 - 4*delta)**(-1)) * np.sum(np.prod(np.power(np.abs(np.matrix([returns[4:], returns[2:-2], returns[:-4]]).T), 4/3), axis=1))
     
-    # return ( delta**(-0.5) ) * ( (RV - BV) * RV**(-1) ) / ( ( (mu1**(-4) + 2 * mu1**(-2) - 5) * max(t**(-1), TQ * BV**(-2)) )**0.5 )
-    return ( delta**(-0.5) ) * ( (RV - BV) * RV**(-1) ) / ( ( (mu1**(-4) + 2 * mu1**(-2) - 5) * max(1, TQ * BV**(-2)) )**0.5 )
+    if test == "difference":
+        return ( delta**(-0.5) ) * ( RV - BV ) / ( ( (mu1**(-4) + 2 * mu1**(-2) - 5) * TQ )**0.5 )
+    if test == "ratio":
+        return ( delta**(-0.5) ) * ( (RV - BV) * RV**(-1) ) / ( ( (mu1**(-4) + 2 * mu1**(-2) - 5) * max(1, TQ * BV**(-2)) )**0.5 )
+        # return ( delta**(-0.5) ) * ( (RV - BV) * RV**(-1) ) / ( ( (mu1**(-4) + 2 * mu1**(-2) - 5) * max(t**(-1), TQ * BV**(-2)) )**0.5 )
+    else:
+        raise ValueError("Test must be either 'difference' or 'ratio'.")
 

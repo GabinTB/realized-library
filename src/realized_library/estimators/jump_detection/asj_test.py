@@ -27,11 +27,12 @@ def is_jump(
     bool
         True if the value indicates a jump, False otherwise.
     """
-    return abs(value) > norm.ppf(1 - alpha/2)  # Two-tailed test, so we divide alpha by 2
+    return abs(value) > norm.ppf(1 - alpha)
 
 def compute(
     prices: np.ndarray,
     timestamps: np.ndarray,
+    H0: Literal["no-jump", "jumps"] = "no-jump",
     A_estimator: Literal["truncated", "multipower"] = "multipower",
     p: Optional[int] = 4,
     k: Optional[int] = 2,
@@ -131,14 +132,14 @@ def compute(
             raise ValueError("Alpha must be provided for the truncated variation estimator.")
         if omega_bar is None:
             raise ValueError("Omega_bar must be provided for the truncated variation estimator.")
-        return tpv(prices=prices, timestamps=timestamps, p=p_, alpha=alpha, omega=omega_bar, correct_scaling_bias=False)
+        return tpv(prices=prices, timestamps=timestamps, p=p_, alpha=alpha, omega=omega_bar)
     
     def A_r_q(r_: float, q_: float) -> float:
         """
         Multipower Variation estimator.
         "The multipower variations (22) do not suffer from the drawback of having to choose α and omega a priori, but they cannot be used for Theorem 7"
         """
-        return mpv(prices=prices, timestamps=timestamps, m=q_, r=r_*q_, correct_scaling_bias=False)
+        return mpv(prices=prices, timestamps=timestamps, m=q_, r=r_*q_)
 
     def B_p(X, p_: int) -> float:
         delta_X = np.diff(np.log(X)) # Log-returns
@@ -166,4 +167,7 @@ def compute(
     else:
         raise ValueError(f"Invalid A_estimator: {A_estimator}. Choose 'truncated' or 'multipower'.")
     
-    return ( k**(p*0.5 - 1) - S ) / np.sqrt(V)
+    if H0 == "no-jump":
+        return ( S - k**(p*0.5 - 1)) / np.sqrt(V)
+    elif H0 == "jumps":
+        return ( S - 1 ) / np.sqrt(V)

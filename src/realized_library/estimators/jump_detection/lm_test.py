@@ -174,7 +174,7 @@ def flags(
     else:
         start_idx_jump_flags = K
 
-    Li = np.array([0.0] + [ np.log(subsamples[i][-1] / subsamples[i-1][-1]) / bpv(subsamples[i-1]) for i in range(1, len(subsamples)) ])
+    Li = np.array([0.0] + [np.log(subsamples[i][-1] / subsamples[i-1][-1]) / bpv(subsamples[i-1]) for i in range(1, len(subsamples))])
 
     c = mu_x(1)
     Sn = 1 / (c * (2 * np.log(n))**0.5)

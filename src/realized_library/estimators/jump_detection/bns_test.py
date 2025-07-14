@@ -27,7 +27,7 @@ def is_jump(
     bool
         True if the value indicates a jump, False otherwise.
     """
-    return abs(value) > norm.ppf(1 - alpha/2)  # Two-tailed test, so we divide alpha by 2
+    return abs(value) > norm.ppf(1 - alpha)
 
 def compute(
     prices: np.ndarray,
@@ -80,8 +80,8 @@ def compute(
 
     W = ((np.pi**2) / 4) + np.pi - 5 # ≈ 0.6090
     RV = rv(prices)
-    BPV = np.sum(np.abs(returns[1:]) * np.abs(returns[:-1])) # = simplified mpv(prices, 2, 2) = bpv(prices)
-    QPQ = (delta**(-1)) * np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3])) # = simplified mpv(prices, 4, 4)
+    BPV = np.sum(np.abs(returns[1:]) * np.abs(returns[:-1])) # = simplified bpv(prices) = mpv(prices, 2, 2)
+    QPQ = (delta**(-1)) * np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3])) # = simplified mpv(prices, 4, 4) 
 
     if test == "linear": # G^
         return (delta**(-0.5)) * ( mu1**(-2) * BPV - RV ) / np.sqrt( W * mu1**(-4) * QPQ )
