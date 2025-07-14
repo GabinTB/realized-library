@@ -84,8 +84,11 @@ def compute(
     QPQ = (delta**(-1)) * np.sum(np.abs(returns[3:]) * np.abs(returns[2:-1]) * np.abs(returns[1:-2]) * np.abs(returns[:-3])) # = simplified mpv(prices, 4, 4) 
 
     if test == "linear": # G^
-        return (delta**(-0.5)) * ( mu1**(-2) * BPV - RV ) / np.sqrt( W * mu1**(-4) * QPQ )
+        # return (delta**(-0.5)) * ( mu1**(-2) * BPV - RV ) / np.sqrt( W * mu1**(-4) * QPQ )
+        return (delta**(-0.5)) * ( RV - mu1**(-2) * BPV ) / np.sqrt( W * mu1**(-4) * QPQ )
     elif test == "ratio": # H^
-        return (delta**(-0.5)) * ( (mu1**(-2) * BPV / RV) - 1 ) / np.sqrt( W * ((QPQ / BPV)**2) ) 
+        # return (delta**(-0.5)) * ( (mu1**(-2) * BPV / RV) - 1 ) / np.sqrt( W * ((QPQ / BPV)**2) )
+        return (delta**(-0.5)) * ( (RV / (mu1**(-2) * BPV)) - 1 ) / np.sqrt( W * ((QPQ / BPV)**2) ) 
     elif test == "adjusted-ratio": # J^
-        return (delta**(-0.5)) * ( (mu1**(-2) * BPV / RV) - 1 ) / np.sqrt( W * max(t**(-1), QPQ / (BPV**2)) )
+        # return (delta**(-0.5)) * ( (mu1**(-2) * BPV / RV) - 1 ) / np.sqrt( W * max(t**(-1), QPQ / (BPV**2)) )
+        return (delta**(-0.5)) * ( (RV / (mu1**(-2) * BPV)) - 1 ) / np.sqrt( W * max(t**(-1), QPQ / (BPV**2)) )
