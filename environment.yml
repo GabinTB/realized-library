@@ -6,6 +6,9 @@ dependencies:
   - python=3.12
   - numpy
   - numba
+  - scipy
+  - pandas
+  - polars
   - pip
   - pip:
       - -e .

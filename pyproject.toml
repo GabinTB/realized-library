@@ -1,8 +1,28 @@
 [project]
 name = "realized-library"
 version = "0.1.0"
-requires-python = ">=3.8"
-dependencies = [
-    "numpy>=1.21",
-    "numba>=0.55"
+description = "A Python package for high-frequency econometrics estimators"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Gabin Taibi", email = "gabin.taibi@icloud.com"}
 ]
+keywords = ["volatility", "finance", "high-frequency", "jump detection"]
+dependencies = [
+    "numba",
+    "numpy",
+    "scipy",
+    "pandas",
+    "polars",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
