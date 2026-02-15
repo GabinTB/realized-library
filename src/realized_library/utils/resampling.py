@@ -48,7 +48,7 @@ def compute(
     timestamps: np.ndarray,
     sample_size: Union[int, str],
     explicit_start: int = None,
-    explict_end: int = None,
+    explicit_end: int = None,
     ffill: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -64,7 +64,7 @@ def compute(
         Resample frequency (e.g., '1s', '5m', etc.) if str or number of observations per bin if int.
     explicit_start : int, optional
         Explicit start timestamp in nanoseconds.
-    explict_end : int, optional
+    explicit_end : int, optional
         Explicit end timestamp in nanoseconds.
     ffill : bool, optional
         Whether to forward-fill missing bins. Default is False.
@@ -82,7 +82,7 @@ def compute(
         raise ValueError(f"Invalid sample_size: '{sample_size}'. Must be a valid interval from 1ns to 60m (e.g., '10us', '1s', '500ms', '10m').")
 
     start_ns = explicit_start if explicit_start is not None else timestamps[0]
-    end_ns = explict_end if explict_end is not None else timestamps[-1]
+    end_ns = explicit_end if explicit_end is not None else timestamps[-1]
 
     mask = (timestamps >= start_ns) & (timestamps <= end_ns)
     timestamps = timestamps[mask]

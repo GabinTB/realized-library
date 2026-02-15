@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.integrate import simps, trapz
+# from scipy.integrate import simps, trapz
+from scipy.integrate import simpson as simps, trapezoid as trapz
 from typing import Callable, Literal
 
 def compute(

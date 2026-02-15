@@ -1,7 +1,7 @@
 import warnings
 from dataclasses import dataclass
 import numpy as np
-from typing import Literal, Union, Callable
+from typing import Literal, Union, Callable, List
 from realized_library._utils.derivative_approximation import first_derivative, second_derivative, third_derivative, fourth_derivative
 from realized_library._utils.integral_approximation import compute as numerical_integral
 
@@ -301,7 +301,7 @@ def autocovariance(x: np.ndarray, h: int) -> float:
         return 0.0
     return np.dot(x[h:], x[:-h])
 
-def list_kernels() -> list[str]:
+def list_kernels() -> List[str]:
     """
     List all available kernel types for realized variance estimation.
 
@@ -405,7 +405,7 @@ def compute(
     dof_adjustment: bool = True
 ) -> float:
     """
-    Compute the realized variance (sum of squared log returns) from high-frequency prices.
+    Compute the realized kernel (sum of squared log returns) from high-frequency prices.
     - "Designing realised kernels to measure the ex-post variation of  equity prices in the presence of noise"
         by Barndorff-Nielsen et al. (2008).
         DOI: 10.3982/ECTA6495
@@ -426,12 +426,12 @@ def compute(
     kernel : str, optional
         Type of kernel to use for the estimation. Supported kernels available with `list_kernels()`.
     dof_adjustment : bool, optional
-        If True, applies degrees of freedom adjustment to the realized variance estimate.
+        If True, applies degrees of freedom adjustment to the realized kernel estimate.
 
     Returns
     -------
     float
-        Realized variance of the price series.
+        Realized kernel of the price series.
 
     Raises
     ------
@@ -459,6 +459,7 @@ def compute(
     actual_H = min(H, n - 1)  # Ensure H does not exceed the number of returns
 
     returns_base = returns[actual_H + 1 : n - actual_H]
+    gamma_0 = np.dot(returns_base, returns_base)
     gamma_minus = np.zeros(actual_H)
     gamma_plus = np.zeros(actual_H)
     for idx, h in enumerate(range(1, actual_H + 1)):
@@ -466,7 +467,6 @@ def compute(
         returns_plus = returns[actual_H + 1 + h : n - actual_H + h]
         gamma_minus[idx] = np.dot(returns_minus, returns_base)
         gamma_plus[idx] = np.dot(returns_base, returns_plus)
-    gamma_0 = np.dot(returns_base, returns_base)
     
     if dof_adjustment:
         adj_factors = n / (n - np.arange(actual_H))

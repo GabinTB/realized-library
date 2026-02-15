@@ -44,7 +44,7 @@ def compute(
     provided by the authors. This test returns intraday level jump flags or statistics, which differs from the
     other jump tests in this library that return only statistics.
     "Jumps in Financial Markets: A New Nonparametric Test and Jump Dynamics"
-        By Lee, S.S., and Mykland P.A.
+        By Lee, S.S., and Mykland P.A. (2008)
         DOI: 10.1093/rfs/hhm056
     
     Parameters
@@ -172,7 +172,7 @@ def flags(
         subsamples = subsamples[-n:] # We should have len(prev_day_prices) == K
         start_idx_jump_flags = 0
     else:
-        start_idx_jump_flags = K
+        start_idx_jump_flags = K - 1
 
     Li = np.array([0.0] + [np.log(subsamples[i][-1] / subsamples[i-1][-1]) / bpv(subsamples[i-1]) for i in range(1, len(subsamples))])
 

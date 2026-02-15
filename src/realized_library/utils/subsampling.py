@@ -40,12 +40,12 @@ def compute(
             raise ValueError("'sample_size' must be greater than or equal to 'offset' when both are integers.")
         expected_samples_lenght = sample_size // offset
 
-    _, time_grid = resample(prices, timestamps, offset, explicit_start=None, explict_end=None, ffill=False)
+    _, time_grid = resample(prices, timestamps, offset, explicit_start=None, explicit_end=None, ffill=False)
     
     prices_subsamples = []
     timestamps_subsamples = []
     for start in time_grid:
-        temp_prices, temp_timestamps = resample(prices, timestamps, sample_size, explicit_start=start, explict_end=None, ffill=True)
+        temp_prices, temp_timestamps = resample(prices, timestamps, sample_size, explicit_start=start, explicit_end=None, ffill=True)
         # if len(temp_prices) < 2:
         #     break
         prices_subsamples.append(temp_prices)

@@ -7,7 +7,7 @@ from realized_library.estimators.variance.realized_variance import compute as rv
 def compute(
     prices: np.array,
     omega2_est: float,
-    timestamps: Optional[np.array] = None,
+    # timestamps: Optional[np.array] = None,
     m: int = 2,     # Bipower variation by default
     r: int = 2,     # Default ri for bipower variation
     M: Optional[int] = None,

@@ -62,7 +62,6 @@ def compute(
     for sample in prices_subsamples:
         if len(sample) < 2:
             continue
-        rv_parse_i = rv(sample)
-        rv_parses.append(rv_parse_i)
+        rv_parses.append(rv(sample))
 
     return np.mean(rv_parses) # = IV estimate

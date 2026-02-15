@@ -4,7 +4,7 @@ from scipy.stats import norm
 from realized_library._utils.std_norm_dist_moments import mu_x, mu_k_p
 from realized_library._utils.hft_timeseries_data import get_time_delta
 from realized_library.utils.resampling import compute as resample
-from realized_library.estimators.variance.trucated_multipower_variation import compute as tpv
+from realized_library.estimators.variance.truncated_multipower_variation import compute as tpv
 from realized_library.estimators.variance.multipower_variation import compute as mpv
 
 def is_jump(

@@ -43,15 +43,14 @@ def _rv_sparse(
     if len(prices) < 2:
         raise ValueError("At least two price observations are required to compute noise variance.")
 
-    variance = rv(prices)
     if debiasing is None:
-        return variance
+        return rv(prices)
     elif debiasing == 'bandi-russel':
         log_returns = np.diff(np.log(prices))
         n = np.sum(log_returns != 0)
         if n == 0:
             return 0.0
-        return variance / (2 * n)
+        return rv(prices) / (2 * n)
     elif debiasing == 'oomen':
         log_returns = np.diff(np.log(prices))
         n = len(log_returns)
